@@ -1,5 +1,6 @@
 #Monitor non-standard event logs in Windows
 #Written by Curtis John (2017)
+#File path hard coded in $directory variable, can be modified to accept as a parameter
 
 # Process arguments and declare variables
 [CmdletBinding()]
