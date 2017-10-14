@@ -87,7 +87,7 @@ if ($logexist = $true)
 
 else
 	{		
-		$output = "CRITICAL: AD FS%4Admin.evtx cannot be located"
+		$output = "CRITICAL: log file cannot be located"
 		$status = 2
 	
 	}
