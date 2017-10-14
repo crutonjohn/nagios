@@ -1,7 +1,5 @@
-
-
-#Monitor custom event logs in Windows
-#Written by Curtis John or whatever
+#Monitor non-standard event logs in Windows
+#Written by Curtis John (2017)
 
 # Process arguments and declare variables
 [CmdletBinding()]
