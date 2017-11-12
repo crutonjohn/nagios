@@ -53,21 +53,21 @@ if ($logexist = $true)
 			#equal to zero events is good
 		if ($yeetcount -eq 0)
 			{
-				$output = "OK: No matching events detected in the last 72 hours"
+				$output = "OK: No matching events detected"
 				$status = 0
 						
 			}
 			#greater than or equal to $critical events 
 		elseif ($yeetcount -ge $critical)
 			{
-				$output = "CRITICAL: ${yeetcount} matching events detected in the last 72 hours"
+				$output = "CRITICAL: ${yeetcount} matching events detected"
 				$status = 2
 			
 			}
 			#greater than or equal to $warning events
 		elseif ($yeetcount -ge $warning)
 			{
-				$output = "WARNING: ${yeetcount} matching events detected in the last 72 hours"
+				$output = "WARNING: ${yeetcount} matching events detected"
 				$status = 1
 			
 			}
