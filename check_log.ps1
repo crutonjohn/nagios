@@ -1,5 +1,4 @@
 #Search log for string and return count of occurrances
-#Variable $directory will need to be modified to accommodate the log's location (will be moved to parameter in the future)
 #Variable $eventstring implies use of "Where-Object -like"
 #Written by Curtis John or whatever
 
