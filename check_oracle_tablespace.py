@@ -31,7 +31,8 @@ if not warning <= critical:
     exit(3)
 
 #these environment variables need to be set either within the script,
-#	or within the OS (system or user level)
+#or within the OS (system or user level):
+
 #os.putenv('ORACLE_HOME', '/usr/lib/oracle/12.1/client64')
 #os.putenv('LD_LIBRARY_PATH', '/usr/lib/oracle/12.1/client64')
 	
@@ -56,7 +57,6 @@ curse.execute(tempeval)
 #establish boolean for temp tablespaces
 tempcount = 0
 for result in curse:
-	print result[0]
 	if result[0] == tablespace:
 		tempcount = 1
 if tempcount > 0:
@@ -72,7 +72,9 @@ if tempcount > 0:
 	for result in curse:
 		if result[0] == "NO":
 			#prep temp non-auto-extensible tablespace usage percentage sql
-			usagesql =	"SELECT round((df.bytes-sum(fs.bytes)) * 100 / df.bytes, 2) ts_pct_used " \
+			usagesql =	"SELECT round((df.bytes-sum(fs.bytes)) * 100 / df.bytes, 2) ts_pct_used, " \
+						"round((df.bytes - sum(fs.bytes)) / (1024 * 1024)) used_ts_size, " \
+						"round(df.maxbytes / (1024 * 1024), 2) max_ts_size " \
 						"FROM (select tablespace_name, bytes_used bytes from V$temp_space_header " \
 						"group by tablespace_name, bytes_free, bytes_used) fs, " \
 						"(select tablespace_name, sum(bytes) bytes, sum(decode(maxbytes, 0, bytes, maxbytes)) maxbytes " \
@@ -85,11 +87,15 @@ if tempcount > 0:
 			for result in curse:
 			#set var for percentage of tablespace used
 				usagepct = result[0]
+				tblusg = result[1]
+				tblalloc = result[2]
 				con.close()
 		
 		elif result[0] == "YES":
 			#prep temp auto-extensible tablespace usage percentage sql
-			usagesql =	"SELECT round((df.bytes - sum(fs.bytes)) / (df.maxbytes) * 100, 2) max_ts_pct_used " \
+			usagesql =	"SELECT round((df.bytes - sum(fs.bytes)) / (df.maxbytes) * 100, 2) max_ts_pct_used, " \
+						"round((df.bytes - sum(fs.bytes)) / (1024 * 1024)) used_ts_size, " \
+						"round(df.maxbytes / (1024 * 1024), 2) max_ts_size " \
 						"FROM (select tablespace_name, bytes_used bytes from V$temp_space_header " \
 						"group by tablespace_name, bytes_free, bytes_used) fs, " \
 						"(select tablespace_name, sum(bytes) bytes, sum(decode(maxbytes, 0, bytes, maxbytes)) maxbytes " \
@@ -102,6 +108,8 @@ if tempcount > 0:
 			for result in curse:
 				#set var for percentage of tablespace used
 				usagepct = result[0]
+				tblusg = result[1]
+				tblalloc = result[2]
 				con.close()
 		#error handling
 		else:
@@ -121,7 +129,9 @@ elif tempcount == 0:
 	for result in curse:
 		if result[0] == "YES":
 			#prep autoextensible query
-			sqltblauto	=		"SELECT round((df.bytes - sum(fs.bytes)) / (df.maxbytes) * 100, 2) max_ts_pct_used " \
+			sqltblauto	=		"SELECT round((df.bytes - sum(fs.bytes)) / (df.maxbytes) * 100, 2) max_ts_pct_used, " \
+								"round((df.bytes - sum(fs.bytes)) / (1024 * 1024)) used_ts_size, " \
+								"round(df.maxbytes / (1024 * 1024), 2) max_ts_size " \
 								"FROM dba_free_space fs, (select tablespace_name, sum(bytes) bytes, " \
 								"sum(decode(maxbytes, 0, bytes, maxbytes)) maxbytes, max(autoextensible) autoextensible " \
 								"from dba_data_files group by tablespace_name) df " \
@@ -132,11 +142,15 @@ elif tempcount == 0:
 			for result in curse:
 				#set var for percentage of tablespace used
 				usagepct = result[0]
+				tblusg = result[1]
+				tblalloc = result[2]
 				con.close()
 
 		elif result[0] == "":
 			#prep non-autoextend query
-			sqltblstatic	=	"SELECT round((df.bytes-sum(fs.bytes)) * 100 / df.bytes, 2) ts_pct_used " \
+			sqltblstatic	=	"SELECT round((df.bytes-sum(fs.bytes)) * 100 / df.bytes, 2) ts_pct_used, " \
+								"round((df.bytes - sum(fs.bytes)) / (1024 * 1024)) used_ts_size, " \
+								"round(df.maxbytes / (1024 * 1024), 2) max_ts_size " \
 								"FROM dba_free_space fs, (select tablespace_name, sum(bytes) bytes, " \
 								"sum(decode(maxbytes, 0, bytes, maxbytes)) maxbytes, max(autoextensible) autoextensible " \
 								"from dba_data_files group by tablespace_name) df " \
@@ -147,7 +161,10 @@ elif tempcount == 0:
 			for result in curse:
 				#set var for percentage of tablespace used
 				usagepct = result[0]
+				tblusg = result[1]
+				tblalloc = result[2]
 				con.close()
+				
 		#error handling
 		else:
 			con.close()
@@ -157,17 +174,20 @@ else:
 	con.close()
 	#error handling
 	print status[3]+" Unable to determine if tablespace %s is temporary" % tablespace
-	exit(3)	
+	exit(3)
+#setup perfdata formatting	
+perfdata = " | tbs_{!s}_usage_pct={!s};{!s};{!s};0;100 tbs_{!s}_usage={!s};;;; tbs_{!s}_alloc={!s};;;;".format(tablespace.lower(), usagepct, warning, critical, tablespace.lower(), tblusg, tablespace.lower(), tblalloc)
 #do some comparisons with the thresholds and exit accordingly
 if usagepct >= critical:
-	print status[2]+" {!s} usage is at {!s}%  | usage={!s};{!s};{!s}".format(tablespace, usagepct, usagepct, warning, critical)
+	print status[2]+" {!s} usage is at {!s}%".format(tablespace, usagepct)+perfdata
 	exit(2)
 elif usagepct >= warning:
-	print status[1]+" {!s} usage is at {!s}%  | usage={!s};{!s};{!s}".format(tablespace, usagepct, usagepct, warning, critical)
+	print status[1]+" {!s} usage is at {!s}%".format(tablespace, usagepct)+perfdata
 	exit(1)
 elif usagepct < warning:
-	print status[0]+" {!s} usage is at {!s}%  | usage={!s};{!s};{!s}".format(tablespace, usagepct, usagepct, warning, critical)
+	print status[0]+" {!s} usage is at {!s}%".format(tablespace, usagepct)+perfdata
 	exit(0)
 else:
 	print status[3]+" Unable to determine {!s} usage. % read as {!s}".format(tablespace, usagepct)
 	exit(3)
+
